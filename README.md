@@ -3,4 +3,4 @@ Hello World
 Hello Team
 Wau Miau
 
-Hello People @
+Hello People
