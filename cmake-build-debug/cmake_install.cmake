@@ -1,4 +1,4 @@
-# Install script for directory: /tmp/PrakBS22
+# Install script for directory: /tmp/tmp.9YcQxJTzPb
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/tmp/PrakBS22/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/tmp/tmp.9YcQxJTzPb/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
