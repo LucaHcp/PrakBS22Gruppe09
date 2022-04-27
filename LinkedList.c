@@ -38,7 +38,7 @@ node_t *find_node(node_t *head, int key){
     return NULL;
 }
 
-int main(){
+int linkedMainX (){
 
     node_t *head = NULL;
     node_t *tmp;

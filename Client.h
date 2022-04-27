@@ -1,3 +1,9 @@
+//
+// Created by User on 27.04.2022.
+//
+
+#ifndef PRAKTIKUM_CLIENT_H
+#define PRAKTIKUM_CLIENT_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,7 +15,7 @@
 #define SERVER_PORT 5678
 #define SERVER_BUFF_SIZE 1024
 
-int clientMainX () {
+int clientMain () {
 
     //erstellen eines Sockets
     int networkSocket;
@@ -42,3 +48,4 @@ int clientMainX () {
 
 
 }
+#endif //PRAKTIKUM_CLIENT_H
