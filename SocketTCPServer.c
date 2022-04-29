@@ -33,7 +33,17 @@ int serverMainX (){
     clientSocket = accept(serverSocket,NULL,NULL);
 
     //send the message
-    send(clientSocket , serverMessage , sizeof(serverMessage),0);
+    //send(clientSocket , serverMessage , sizeof(serverMessage),0);
+
+    printf("TEST1");
+    while(1) {
+        printf("TEST2");
+        char input[SERVER_BUFF_SIZE];
+        read(serverSocket,&input,SERVER_BUFF_SIZE);
+
+        break;
+    }
+
     // Close the socket
     close(serverSocket);
 

@@ -40,6 +40,21 @@ int serverMain (){
 
     //send the message
     send(clientSocket , serverMessage , sizeof(serverMessage),0);
+
+    printf("TEST1");
+
+    char quit[4] = "quit";
+
+    while(1) {
+        printf("TEST2");
+        char input[SERVER_BUFF_SIZE];
+        read(serverSocket,&input,SERVER_BUFF_SIZE);
+
+        if (input == "quit"){
+            break;
+        }
+    }
+
     // Close the socket
     close(serverSocket);
 
