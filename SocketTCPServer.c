@@ -13,6 +13,14 @@ int serverMainX (){
 
     char serverMessage[SERVER_BUFF_SIZE] = "You have reached the Server!";
 
+    char in[SERVER_BUFF_SIZE];
+    int input;
+
+    int clientSocket;
+
+    socklen_t client_len;
+
+
     // create the server socket
     int serverSocket;
     serverSocket = socket(AF_INET,SOCK_STREAM,0);
@@ -29,19 +37,33 @@ int serverMainX (){
     listen(serverSocket,5);
 
     //Create Integer hold the client socket
-    int clientSocket;
-    clientSocket = accept(serverSocket,NULL,NULL);
+    //clientSocket = accept(serverSocket,NULL,NULL);
 
     //send the message
-    //send(clientSocket , serverMessage , sizeof(serverMessage),0);
+    send(clientSocket , serverMessage , sizeof(serverMessage),0);
 
-    printf("TEST1");
-    while(1) {
-        printf("TEST2");
-        char input[SERVER_BUFF_SIZE];
-        read(serverSocket,&input,SERVER_BUFF_SIZE);
+    // Socket lauschen lassen
+    int lrt = listen(serverSocket, 5);
+    if (lrt < 0 ){
+        fprintf(stderr, "socket konnte nicht listen gesetzt werden\n");
+        exit(-1);
+    }
 
-        break;
+    while (1) {
+
+        // Verbindung eines Clients wird entgegengenommen
+        clientSocket = accept(serverSocket, (struct sockaddr *) &serverAddress, &client_len);
+
+        // Lesen von Daten, die der Client schickt
+        input = read(clientSocket, in, SERVER_BUFF_SIZE);
+
+        // Zurückschicken der Daten, solange der Client welche schickt (und kein Fehler passiert)
+        while (input >= 0) {
+            write(clientSocket, in, input);
+            input = read(clientSocket, in, SERVER_BUFF_SIZE);
+
+        }
+        close(clientSocket);
     }
 
     // Close the socket

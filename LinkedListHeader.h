@@ -8,8 +8,8 @@
 #include <stdlib.h>
 
 struct node {
-    int key;
-    int value;
+    char key;
+    char value;
     struct node* next;
 };
 typedef struct node node_t;
@@ -24,7 +24,7 @@ void printList(node_t *head) {
     printf("\n");
 }
 
-node_t *createNewNode(int key, int value) {
+node_t * createNewNode(char key, char value) {
     node_t *result = malloc(sizeof (node_t));
     result->value = value;
     result->key = key;
@@ -32,7 +32,7 @@ node_t *createNewNode(int key, int value) {
     return result;
 }
 
-node_t *find_node(node_t *head, int key){
+node_t *find_node(node_t *head, char key){
     node_t  *tmp = head;
     while(tmp != NULL){
         if (tmp->key == key) return tmp;
@@ -40,4 +40,10 @@ node_t *find_node(node_t *head, int key){
     }
     return NULL;
 }
+
+int put(char* key, char* value);
+
+int get(char* key, char* res);
+
+
 #endif //PROJEKT_LINKEDLISTHEADER_H

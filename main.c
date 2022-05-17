@@ -11,6 +11,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <string.h>
+
+#include "LinkedListHeader.h"
 
 
 #define BUFSIZE 1024 // Größe des Buffers
@@ -19,6 +22,19 @@
 
 
 int main() {
+
+    struct node *node;
+    char input;
+
+    printf("Start");
+
+    node = createNewNode('key','value');
+
+    printf(node->value);
+
+    scanf("%d",input);
+
+    /*
 
     int rfd; // Rendevouz-Descriptor
     int cfd; // Verbindungs-Descriptor
@@ -68,6 +84,11 @@ int main() {
 
         // Lesen von Daten, die der Client schickt
         bytes_read = read(cfd, in, BUFSIZE);
+        for (int i = 0; i < strlen(in); ++i) {
+            printf(" %i \n" , in[i]);
+        }
+
+        printf(" %s \n", in);
 
         // Zurückschicken der Daten, solange der Client welche schickt (und kein Fehler passiert)
         while (bytes_read > 0) {
@@ -82,5 +103,8 @@ int main() {
 
     // Rendevouz Descriptor schließen
     close(rfd);
+
+
+     */
 
 }
