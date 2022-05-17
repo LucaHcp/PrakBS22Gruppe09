@@ -95,7 +95,7 @@ int main() {
     printf( "Tail : %i \n",myList->tail->key);
     printf( "Head : %i \n",myList->head ->key);
 
-    printf("Start");
+    printf("Start \n");
 
 
     int rfd; // Rendevouz-Descriptor
@@ -106,6 +106,7 @@ int main() {
     char in[BUFSIZE]; // Daten vom Client an den Server
     int bytes_read; // Anzahl der Bytes, die der Client geschickt hat
 
+    printf("1 \n");
 
     // Socket erstellen
     rfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -114,11 +115,13 @@ int main() {
         exit(-1);
     }
 
+    printf("2 \n");
 
     // Socket Optionen setzen für schnelles wiederholtes Binden der Adresse
     int option = 1;
     setsockopt(rfd, SOL_SOCKET, SO_REUSEADDR, (const void *) &option, sizeof(int));
 
+    printf("3 \n");
 
     // Socket binden
     struct sockaddr_in server;
@@ -131,6 +134,7 @@ int main() {
         exit(-1);
     }
 
+    printf("4 \n");
 
     // Socket lauschen lassen
     int lrt = listen(rfd, 5);
@@ -138,6 +142,8 @@ int main() {
         fprintf(stderr, "socket konnte nicht listen gesetzt werden\n");
         exit(-1);
     }
+
+    printf("5 \n");
 
     while (ENDLOSSCHLEIFE) {
 
@@ -155,7 +161,7 @@ int main() {
             bytes_read = read(cfd, in, BUFSIZE);
 
         }
-        printf("Close");
+        printf("Close \n");
         close(cfd);
     }
 
