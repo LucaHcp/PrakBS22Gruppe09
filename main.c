@@ -13,28 +13,90 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "LinkedListHeader.h"
-
 
 #define BUFSIZE 1024 // Größe des Buffers
 #define ENDLOSSCHLEIFE 1
 #define PORT 5678
 
+typedef struct node {
+    int key;
+    int value;
+    struct node *next;
+}node;
+
+typedef struct linkedList {
+    node *head;
+    node *tail;
+
+}linkedList;
+
+int getNodeValueByKey(int key , linkedList *list){
+    node * nodePointer = list->head;
+    while (nodePointer != NULL){
+        if (nodePointer->key == key){
+            return nodePointer->value;
+        }
+        nodePointer = nodePointer->next;
+    }
+}
+
+node* getNodeByKey(int key , linkedList *list){
+    node * nodePointer = list->head;
+    while (nodePointer != NULL){
+        if (nodePointer->key == key){
+            return nodePointer;
+        }
+        nodePointer = nodePointer->next;
+    }
+    return NULL;
+}
+
+void addNodeToListEnd(int key, int value, linkedList* list){
+    if ( list->head == NULL) {
+        node *nodePointer = malloc(sizeof (node));
+        nodePointer->key = key;
+        nodePointer->value = value;
+        nodePointer->next = NULL;
+
+        list->head = nodePointer;
+        list->tail = nodePointer;
+    }
+    else {
+        if (getNodeByKey(key,list) == NULL){
+            node *nodePointer = malloc(sizeof (node));
+            nodePointer->key = key;
+            nodePointer->value = value;
+            nodePointer->next = NULL;
+
+            list->tail->next = nodePointer;
+            list->tail = nodePointer;
+        }
+        else {
+            node* nodePointer = getNodeByKey(key,list);
+            nodePointer->value = value;
+        }
+    }
+}
+
 
 int main() {
 
-    struct node *node;
-    char input;
+    printf("Start \n");
+
+    linkedList *myList = malloc(sizeof(struct linkedList));
+
+    addNodeToListEnd(1,1,myList);
+    addNodeToListEnd(2,2,myList);
+    addNodeToListEnd(3,3,myList);
+
+    printf( "Key : %i \n",myList->head->key);
+    printf( "Key : %i \n",myList->head->next->key);
+    printf( "Key : %i \n",myList->head->next->next->key);
+    printf( "Tail : %i \n",myList->tail->key);
+    printf( "Head : %i \n",myList->head ->key);
 
     printf("Start");
 
-    node = createNewNode('key','value');
-
-    printf(node->value);
-
-    scanf("%d",input);
-
-    /*
 
     int rfd; // Rendevouz-Descriptor
     int cfd; // Verbindungs-Descriptor
@@ -84,11 +146,6 @@ int main() {
 
         // Lesen von Daten, die der Client schickt
         bytes_read = read(cfd, in, BUFSIZE);
-        for (int i = 0; i < strlen(in); ++i) {
-            printf(" %i \n" , in[i]);
-        }
-
-        printf(" %s \n", in);
 
         // Zurückschicken der Daten, solange der Client welche schickt (und kein Fehler passiert)
         while (bytes_read > 0) {
@@ -98,13 +155,11 @@ int main() {
             bytes_read = read(cfd, in, BUFSIZE);
 
         }
+        printf("Close");
         close(cfd);
     }
 
     // Rendevouz Descriptor schließen
     close(rfd);
-
-
-     */
 
 }

@@ -3,4 +3,4 @@ project(Projekt C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(Projekt main.c SocketTCPServer.c Client.h Server.h)
+add_executable(Projekt main.c)

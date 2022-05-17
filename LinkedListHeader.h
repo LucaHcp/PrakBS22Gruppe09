@@ -7,15 +7,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct node {
+typedef struct node {
     char key;
     char value;
-    struct node* next;
-};
-typedef struct node node_t;
+    struct node * next;
+}node;
 
-void printList(node_t *head) {
-    node_t *temporary = head;
+void printList(node *head) {
+    node *temporary = head;
     printf("Start");
     while (temporary != NULL) {
         printf(" %d:%d | " , temporary->key, temporary->value);
@@ -24,16 +23,16 @@ void printList(node_t *head) {
     printf("\n");
 }
 
-node_t * createNewNode(char key, char value) {
-    node_t *result = malloc(sizeof (node_t));
+node * createNewNode(char key, char value) {
+    node *result = malloc(sizeof (node));
     result->value = value;
     result->key = key;
     result->next = NULL;
     return result;
 }
 
-node_t *find_node(node_t *head, char key){
-    node_t  *tmp = head;
+node *find_node(node *head, char key){
+    node  *tmp = head;
     while(tmp != NULL){
         if (tmp->key == key) return tmp;
         tmp = tmp->next;
