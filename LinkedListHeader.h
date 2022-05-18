@@ -29,7 +29,7 @@ int getNodeValueByKey(int key , linkedList * list){
         }
         nodePointer = nodePointer->next;
     }
-    return NULL;
+    return -1;
 }
 
 node* getNodeByKey(int key , linkedList * list){
@@ -66,7 +66,6 @@ void addNodeToListEnd(int key, int value, linkedList * list){
             list->tail = nodePointer;
         }
         else {
-            printf("Found Key \n");
             node* nodePointer = getNodeByKey(key,list);
             nodePointer->value = value;
         }
@@ -91,6 +90,10 @@ void deleteNode(int key, linkedList * list){
             nodePointer->prev->next = NULL;
             list->tail = nodePointer->prev;
             nodePointer->prev = NULL;
+        }
+        else {
+            list->head = NULL;
+            list->tail = NULL;
         }
     }
 }
