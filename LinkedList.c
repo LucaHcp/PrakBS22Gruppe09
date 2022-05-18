@@ -21,7 +21,7 @@ void printList(node_t *head) {
     printf("\n");
 }
 
-node_t *createNewNode(int key, int value) {
+node_t *put(int key, int value) {
     node_t *result = malloc(sizeof (node_t));
     result->value = value;
     result->key = key;
@@ -38,13 +38,21 @@ node_t *find_node(node_t *head, int key){
     return NULL;
 }
 
+node_t *del(int key) {
+    node_t  *tmp = head;
+    while(tmp != NULL){
+        if (tmp->key == key) return tmp;
+        tmp = tmp->next;
+    }
+}
+
 int linkedMainX (){
 
     node_t *head = NULL;
     node_t *tmp;
 
     for(int i = 1; i <= 10; i++){
-        tmp = createNewNode(i,i);
+        tmp = put(i,i);
         tmp->next = head;
         head = tmp;
     }

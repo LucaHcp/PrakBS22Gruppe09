@@ -6,12 +6,18 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
 #include "LinkedListHeader.h"
 
 
 #define BUFSIZE 1024 // Größe des Buffers
 #define ENDLOSSCHLEIFE 1
 #define PORT 5678
+#define MAXCOUNT 1000000
+#define NUM_OF_CHILDS 4
+#define SEGSIZE sizeof(int)
+
 
 int main() {
 
@@ -24,10 +30,13 @@ int main() {
     char str[BUFSIZE];
     printf(" Start \n");
 
-
-
     int rfd; // Rendevouz-Descriptor
     int cfd; // Verbindungs-Descriptor
+
+    int i, id, *shar_mem;   /*  id für das Shared Memory Segment        */
+    /*  mit *shar_mem kann der im Shared Memory */
+    /*  gespeicherte Wert verändert werden      */
+    int pid[NUM_OF_CHILDS]; /*  enthält die PIDs der Kindprozesse       */
 
     struct sockaddr_in client; // Socketadresse eines Clients
     socklen_t client_len; // Länge der Client-Daten
@@ -67,6 +76,30 @@ int main() {
         exit(-1);
     }
 
+    id = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT|0600);
+    shar_mem = (int *)shmat(id, 0, 0);
+    *shar_mem = 0;
+
+    /* Der Vaterprozess erzeugt eine bestimmte Anzahl Kindprozesse      */
+    for (i = 0; i < NUM_OF_CHILDS; i++) {
+        pid[i] = fork();
+        if (pid[i] == -1) {
+            printf("Kindprozess konnte nicht erzeugt werden!\n");
+            exit(1);
+        }
+    }
+
+    /*for (i = 0; i < NUM_OF_CHILDS; i++) {
+        waitpid(pid[i], NULL, 0);
+    }
+    printf("Alle %d Kindprozesse wurden beendet.\n", NUM_OF_CHILDS);
+
+
+    *//* Das Shared Memory Segment wird abgekoppelt und freigegeben. *//*
+    shmdt(shar_mem);
+    shmctl(id, IPC_RMID, 0);
+*/
+
     while (ENDLOSSCHLEIFE) {
 
         printf(" Warte auf Verbindung \n");
@@ -87,7 +120,6 @@ int main() {
         while (bytes_read > 0) {
             //printf(" sending back the %d bytes I received...\n", bytes_read);
             // write(cfd, in, bytes_read);
-
 
             // Check Input
             // QUIT
