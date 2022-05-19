@@ -42,7 +42,7 @@ node* getNodeByKey(int key , linkedList * list){
     return NULL;
 }
 
-void addNodeToListEnd(int key, int value, linkedList * list){
+linkedList * addNodeToListEnd(int key, int value, linkedList * list){
     if ( list->head == NULL) {
         node *nodePointer = malloc(sizeof (node));
         nodePointer->key = key;

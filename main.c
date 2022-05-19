@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/shm.h>
-#include <sys/sem.h>
 #include <sys/wait.h>
 #include "LinkedListHeader.h"
 
@@ -15,13 +14,24 @@
 #define BUFSIZE 1024 // Größe des Buffers
 #define ENDLOSSCHLEIFE 1
 #define PORT 5678
-#define NUM_OF_CHILDS 3
+#define NUM_OF_CHILDS 2
 #define SEGSIZE sizeof(linkedList)
 
+/*
+struct linkedList getData() {
+    //create/attach shared memory
+    int shID = shmget(IPC_PRIVATE,sizeof(struct linkedList), IPC_CREAT | 0777);
+    if (shID < 0) printf("shared memory request error\n");
+    struct linkedList *data = shmat(shID, NULL, 0);
+    if (data < 0) printf("attach error\n");
+    return data;
+}
+ */
 
 int main() {
 
-    linkedList * shar_mem = malloc(sizeof(struct linkedList));
+    linkedList * myList = malloc(sizeof(struct linkedList));
+    linkedList * shar_mem;;
 
 
     int keyHolder;
@@ -34,9 +44,7 @@ int main() {
     int rfd; // Rendevouz-Descriptor
     int cfd; // Verbindungs-Descriptor
 
-    int  shm_id;
-    unsigned short marker[1];
-    int i, sem_id;   /*  id für das Shared Memory Segment        */
+    int i, id;   /*  id für das Shared Memory Segment        */
     /*  mit *shar_mem kann der im Shared Memory */
     /*  gespeicherte Wert verändert werden      */
     int pid[NUM_OF_CHILDS]; /*  enthält die PIDs der Kindprozesse       */
@@ -80,26 +88,11 @@ int main() {
     }
 
 
-    // Semaphore
-    sem_id = semget (IPC_PRIVATE, 1, IPC_CREAT|0644);
-    if (sem_id == -1) {
-        perror ("Die Gruppe konnte nicht angelegt werden!");
-        exit(1);
-    }
-
-    // Anschließend wird der Semaphor auf 1 gesetzt
-    marker[0] = 1;
-    semctl(sem_id, 1, SETALL, marker);  // alle Semaphore auf 1
+    // Shared Memory
+    id = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT|0600);
+    shar_mem = (linkedList *)shmat(id, 0, 0);
 
 
-    // Anforderung des Shared Memory Segments
-    shm_id = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT|0600);
-    if (shm_id == -1) {
-        perror ("Das Segment konnte nicht angelegt werden!");
-        exit(1);
-    }
-    shar_mem = (linkedList *)shmat(sem_id, 0, 0);
-    *shar_mem = *shar_mem;
 
 
 
@@ -175,7 +168,6 @@ int main() {
 
                     // Put in Linked list
                     addNodeToListEnd(keyHolder, valueHolder, shar_mem);
-                    printf(" %i \n" ,shar_mem->head->key);
 
                 }
                 // GET
@@ -188,7 +180,7 @@ int main() {
                     // Store Value
                     valueHolder = getNodeValueByKey(keyHolder, shar_mem);
                     printf(" %i \n" ,shar_mem->head->key);
-                    if (getNodeValueByKey(keyHolder, shar_mem) != -1) {
+                    if (valueHolder != -1) {
                         printf("Found Key %i with Value : %i \n ", keyHolder, valueHolder);
                         // Return Value
                         write(cfd, "\n Found Key : ", strlen("\n Found Key : "));
@@ -275,7 +267,7 @@ int main() {
 
     // Das Shared Memory Segment wird abgekoppelt und freigegeben.
     shmdt(shar_mem);
-    shmctl(sem_id, IPC_RMID, 0);
+    shmctl(id, IPC_RMID, 0);
 
     // Rendevouz Descriptor schließen
     close(rfd);
