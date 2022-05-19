@@ -18,7 +18,6 @@ typedef struct node {
 typedef struct linkedList {
     node *head;
     node *tail;
-
 }linkedList;
 
 int getNodeValueByKey(int key , linkedList * list){

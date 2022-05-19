@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/shm.h>
+#include <sys/sem.h>
 #include <sys/wait.h>
 #include "LinkedListHeader.h"
 
@@ -14,14 +15,14 @@
 #define BUFSIZE 1024 // Größe des Buffers
 #define ENDLOSSCHLEIFE 1
 #define PORT 5678
-#define MAXCOUNT 1000000
-#define NUM_OF_CHILDS 4
-#define SEGSIZE sizeof(int)
+#define NUM_OF_CHILDS 3
+#define SEGSIZE sizeof(linkedList)
 
 
 int main() {
 
-    linkedList *myList = malloc(sizeof(struct linkedList));
+    linkedList * shar_mem = malloc(sizeof(struct linkedList));
+
 
     int keyHolder;
     int valueHolder;
@@ -33,7 +34,9 @@ int main() {
     int rfd; // Rendevouz-Descriptor
     int cfd; // Verbindungs-Descriptor
 
-    int i, id, *shar_mem;   /*  id für das Shared Memory Segment        */
+    int  shm_id;
+    unsigned short marker[1];
+    int i, sem_id;   /*  id für das Shared Memory Segment        */
     /*  mit *shar_mem kann der im Shared Memory */
     /*  gespeicherte Wert verändert werden      */
     int pid[NUM_OF_CHILDS]; /*  enthält die PIDs der Kindprozesse       */
@@ -76,11 +79,31 @@ int main() {
         exit(-1);
     }
 
-    id = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT|0600);
-    shar_mem = (int *)shmat(id, 0, 0);
-    *shar_mem = 0;
 
-    /* Der Vaterprozess erzeugt eine bestimmte Anzahl Kindprozesse      */
+    // Semaphore
+    sem_id = semget (IPC_PRIVATE, 1, IPC_CREAT|0644);
+    if (sem_id == -1) {
+        perror ("Die Gruppe konnte nicht angelegt werden!");
+        exit(1);
+    }
+
+    // Anschließend wird der Semaphor auf 1 gesetzt
+    marker[0] = 1;
+    semctl(sem_id, 1, SETALL, marker);  // alle Semaphore auf 1
+
+
+    // Anforderung des Shared Memory Segments
+    shm_id = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT|0600);
+    if (shm_id == -1) {
+        perror ("Das Segment konnte nicht angelegt werden!");
+        exit(1);
+    }
+    shar_mem = (linkedList *)shmat(sem_id, 0, 0);
+    *shar_mem = *shar_mem;
+
+
+
+    // Der Vaterprozess erzeugt eine bestimmte Anzahl Kindprozesse
     for (i = 0; i < NUM_OF_CHILDS; i++) {
         pid[i] = fork();
         if (pid[i] == -1) {
@@ -89,148 +112,140 @@ int main() {
         }
     }
 
-    /*for (i = 0; i < NUM_OF_CHILDS; i++) {
-        waitpid(pid[i], NULL, 0);
-    }
-    printf("Alle %d Kindprozesse wurden beendet.\n", NUM_OF_CHILDS);
+
+    if (pid[i] == 0) {
+
+        while (ENDLOSSCHLEIFE) {
+
+            printf(" Warte auf Verbindung \n");
+            // Verbindung eines Clients wird entgegengenommen
+            cfd = accept(rfd, (struct sockaddr *) &client, &client_len);
 
 
-    *//* Das Shared Memory Segment wird abgekoppelt und freigegeben. *//*
-    shmdt(shar_mem);
-    shmctl(id, IPC_RMID, 0);
-*/
+            printf(" Lesen Von Input \n");
 
-    while (ENDLOSSCHLEIFE) {
+            memset(in, '\0', BUFSIZE);
 
-        printf(" Warte auf Verbindung \n");
-        // Verbindung eines Clients wird entgegengenommen
-        cfd = accept(rfd, (struct sockaddr *) &client, &client_len);
+            // Lesen von Daten, die der Client schickt
+            bytes_read = read(cfd, in, BUFSIZE);
+            //bytes_read = recv(cfd, in, BUFSIZE, 0);
 
 
-        printf(" Lesen Von Input \n");
+            // Zurückschicken der Daten, solange der Client welche schickt (und kein Fehler passiert)
+            while (bytes_read > 0) {
+                //printf(" sending back the %d bytes I received...\n", bytes_read);
+                // write(cfd, in, bytes_read);
 
-        memset(in,'\0',BUFSIZE);
+                // Check Input
+                // QUIT
+                if (strcmp("quit", strtok(in, "\r\n")) == 0) {
+                    printf(" Quit \n ");
+                    break;
+                }
+                    // HELP
+                else if (strcmp("help", strtok(in, "\r\n")) == 0) {
+                    write(cfd, helpMessage, strlen(helpMessage));
+                    printf(" Help \n");
+                }
+                    // PUT
+                else if (strcmp("put", strtok(in, "\r\n")) == 0) {
+                    //Get Key
+                    write(cfd, "Key : ", strlen("Key : "));
+                    bytes_read = read(cfd, in, BUFSIZE);
 
-        // Lesen von Daten, die der Client schickt
-        bytes_read = read(cfd, in, BUFSIZE);
-        //bytes_read = recv(cfd, in, BUFSIZE, 0);
+                    keyHolder = atoi(in);
 
+                    //Get Value
+                    write(cfd, "Value : ", strlen("Value : "));
+                    bytes_read = read(cfd, in, BUFSIZE);
 
-        // Zurückschicken der Daten, solange der Client welche schickt (und kein Fehler passiert)
-        while (bytes_read > 0) {
-            //printf(" sending back the %d bytes I received...\n", bytes_read);
-            // write(cfd, in, bytes_read);
+                    valueHolder = atoi(in);
 
-            // Check Input
-            // QUIT
-            if (strcmp("quit",strtok(in, "\r\n")) == 0){
-                printf(" Quit \n ");
-                break;
-            }
-            // HELP
-            else if (strcmp("help",strtok(in, "\r\n")) == 0){
-                write(cfd, helpMessage, strlen(helpMessage));
-                printf(" Help \n");
-            }
-            // PUT
-            else if (strcmp("put",strtok(in, "\r\n")) == 0){
-                //Get Key
-                write(cfd, "Key : ", strlen("Key : "));
-                bytes_read = read(cfd, in, BUFSIZE);
+                    printf("Put Key %i with Value : %i \n ", keyHolder, valueHolder);
 
-                keyHolder = atoi(in);
-
-                //Get Value
-                write(cfd, "Value : ", strlen("Value : "));
-                bytes_read = read(cfd, in, BUFSIZE);
-
-                valueHolder = atoi(in);
-
-                printf("Put Key %i with Value : %i \n ",keyHolder,valueHolder);
-
-                // Return Put Key Value
-                sprintf(str, "%i",keyHolder);
-                write(cfd, "\nPut Key : ", strlen("\n Put Key : "));
-                write(cfd, str, strlen(str));
-
-                sprintf(str, "%i",valueHolder);
-                write(cfd, " | Value : ", strlen(" | Value : "));
-                write(cfd, str, strlen(str));
-                write(cfd, "\n \n", strlen("\n \n"));
-
-                // Put in Linked list
-                addNodeToListEnd(keyHolder,valueHolder,myList);
-
-            }
-            // GET
-            else if (strcmp("get",strtok(in, "\r\n")) == 0){
-                //Get Key
-                write(cfd, "Key : ", strlen("Key : "));
-                bytes_read = read(cfd, in, BUFSIZE);
-                // Store Key
-                keyHolder = atoi(in);
-                // Store Value
-                valueHolder = getNodeValueByKey(keyHolder,myList);
-                if ( getNodeValueByKey(keyHolder,myList) != -1 ) {
-                    printf("Found Key %i with Value : %i \n ",keyHolder,valueHolder);
-                    // Return Value
-                    write(cfd, "\n Found Key : ", strlen("\n Found Key : "));
-                    sprintf(str, "%i",keyHolder);
+                    // Return Put Key Value
+                    sprintf(str, "%i", keyHolder);
+                    write(cfd, "\nPut Key : ", strlen("\n Put Key : "));
                     write(cfd, str, strlen(str));
+
+                    sprintf(str, "%i", valueHolder);
                     write(cfd, " | Value : ", strlen(" | Value : "));
-                    sprintf(str, "%i",valueHolder);
                     write(cfd, str, strlen(str));
                     write(cfd, "\n \n", strlen("\n \n"));
+
+                    // Put in Linked list
+                    addNodeToListEnd(keyHolder, valueHolder, shar_mem);
+                    printf(" %i \n" ,shar_mem->head->key);
+
                 }
-                else {
-                    // Return Not Found
-                    printf("Found No Key : %i ",keyHolder);
-                    write(cfd, "\n No Key : ", strlen("\n No Key : "));
-                    sprintf(str, "%i",keyHolder);
-                    write(cfd, str, strlen(str));
-                    write(cfd, "\n \n", strlen("\n \n"));
+                // GET
+                else if (strcmp("get", strtok(in, "\r\n")) == 0) {
+                    //Get Key
+                    write(cfd, "Key : ", strlen("Key : "));
+                    bytes_read = read(cfd, in, BUFSIZE);
+                    // Store Key
+                    keyHolder = atoi(in);
+                    // Store Value
+                    valueHolder = getNodeValueByKey(keyHolder, shar_mem);
+                    printf(" %i \n" ,shar_mem->head->key);
+                    if (getNodeValueByKey(keyHolder, shar_mem) != -1) {
+                        printf("Found Key %i with Value : %i \n ", keyHolder, valueHolder);
+                        // Return Value
+                        write(cfd, "\n Found Key : ", strlen("\n Found Key : "));
+                        sprintf(str, "%i", keyHolder);
+                        write(cfd, str, strlen(str));
+                        write(cfd, " | Value : ", strlen(" | Value : "));
+                        sprintf(str, "%i", valueHolder);
+                        write(cfd, str, strlen(str));
+                        write(cfd, "\n \n", strlen("\n \n"));
+                    } else {
+                        // Return Not Found
+                        printf("Found No Key : %i ", keyHolder);
+                        write(cfd, "\n No Key : ", strlen("\n No Key : "));
+                        sprintf(str, "%i", keyHolder);
+                        write(cfd, str, strlen(str));
+                        write(cfd, "\n \n", strlen("\n \n"));
+                    }
                 }
-            }
-            // DELETE
-            else if (strcmp("del",strtok(in, "\r\n")) == 0) {
-                //Get Key
-                write(cfd, "Key : ", strlen("Key : "));
-                bytes_read = read(cfd, in, BUFSIZE);
-                // Store Key
-                keyHolder = atoi(in);
-                if (getNodeByKey(keyHolder,myList) != NULL){
-                    printf("Found Key %i with Value : %i \n ",keyHolder,valueHolder);
-                    deleteNode(keyHolder,myList);
-                    write(cfd, "\n Delete Key : ", strlen("\n Delete Key : "));
-                    sprintf(str, "%i",keyHolder);
-                    write(cfd, str, strlen(str));
-                    write(cfd, "\n \n", strlen("\n \n"));
+                // DELETE
+                else if (strcmp("del", strtok(in, "\r\n")) == 0) {
+                    //Get Key
+                    write(cfd, "Key : ", strlen("Key : "));
+                    bytes_read = read(cfd, in, BUFSIZE);
+                    // Store Key
+                    keyHolder = atoi(in);
+                    if (getNodeByKey(keyHolder, shar_mem) != NULL) {
+                        printf("Found Key %i with Value : %i \n ", keyHolder, valueHolder);
+                        deleteNode(keyHolder, shar_mem);
+                        write(cfd, "\n Delete Key : ", strlen("\n Delete Key : "));
+                        sprintf(str, "%i", keyHolder);
+                        write(cfd, str, strlen(str));
+                        write(cfd, "\n \n", strlen("\n \n"));
+                    } else {
+                        printf("Found No Key %i \n ", keyHolder);
+                        write(cfd, "\n Key : ", strlen("\n Key : "));
+                        sprintf(str, "%i", keyHolder);
+                        write(cfd, str, strlen(str));
+                        write(cfd, "\n Not Found ", strlen("\n Not Found "));
+                        write(cfd, "\n \n", strlen("\n \n"));
+                    }
                 }
-                else{
-                    printf("Found No Key %i \n ",keyHolder);
-                    write(cfd, "\n Key : ", strlen("\n Key : "));
-                    sprintf(str, "%i",keyHolder);
-                    write(cfd, str, strlen(str));
-                    write(cfd, "\n Not Found ", strlen("\n Not Found "));
-                    write(cfd, "\n \n", strlen("\n \n"));
-                }
-            }
-            // list
-            else if (strcmp("list",strtok(in, "\r\n")) == 0) {
+                // list
+                else if (strcmp("list", strtok(in, "\r\n")) == 0) {
                     printf(" List Start \n");
-                write(cfd, "\n /// List Start /// \n", strlen("\n /// List Start /// \n"));
-                    node * nodePointer = myList->head;
-                    while(nodePointer != NULL){
-                        printf(" Key: %i | Value: %i \n", nodePointer->key,nodePointer->value);
+                    write(cfd, "\n /// List Start /// \n", strlen("\n /// List Start /// \n"));
+                    node *nodePointer = shar_mem->head;
+                    while (nodePointer != NULL) {
+                        printf(" Key: %i | Value: %i \n", nodePointer->key, nodePointer->value);
 
                         write(cfd, "\n Key : ", strlen("\n Key : "));
                         keyHolder = nodePointer->key;
-                        sprintf(str, "%i",keyHolder);
+                        sprintf(str, "%i", keyHolder);
                         write(cfd, str, strlen(str));
 
                         write(cfd, "\n Value : ", strlen("\n Value : "));
                         valueHolder = nodePointer->value;
-                        sprintf(str, "%i",valueHolder);
+                        sprintf(str, "%i", valueHolder);
                         write(cfd, str, strlen(str));
 
                         write(cfd, "\n \n", strlen("\n"));
@@ -238,18 +253,30 @@ int main() {
                         nodePointer = nodePointer->next;
                     }
                     printf(" List End \n");
-                write(cfd, "\n /// List End /// \n\n", strlen("\n /// List End /// \n\n"));
+                    write(cfd, "\n /// List End /// \n\n", strlen("\n /// List End /// \n\n"));
+                }
+
+                printf(" Lesen Von Input \n");
+                //bytes_read = recv(cfd, in, BUFSIZE,0);
+                bytes_read = read(cfd, in, BUFSIZE);
             }
 
-            printf(" Lesen Von Input \n");
-            //bytes_read = recv(cfd, in, BUFSIZE,0);
-            bytes_read = read(cfd, in, BUFSIZE);
+            printf("\n /// Verbindungsabbruch /// \n\n");
+            close(cfd);
         }
-
-        printf("\n /// Verbindungsabbruch /// \n\n");
-        close(cfd);
     }
     printf(" END \n");
+
+    for (i = 0; i < NUM_OF_CHILDS; i++) {
+        waitpid(pid[i], NULL, 0);
+    }
+    printf("Alle %d Kindprozesse wurden beendet.\n", NUM_OF_CHILDS);
+
+
+    // Das Shared Memory Segment wird abgekoppelt und freigegeben.
+    shmdt(shar_mem);
+    shmctl(sem_id, IPC_RMID, 0);
+
     // Rendevouz Descriptor schließen
     close(rfd);
 
