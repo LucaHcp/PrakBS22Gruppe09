@@ -8,17 +8,6 @@
 #include <stdio.h> 
 #include <stdlib.h>
 
-typedef struct node {
-    int key;
-    int value;
-    struct node *next;
-    struct node *prev;
-}node;
-
-typedef struct linkedList {
-    node *head;
-    node *tail;
-}linkedList;
 
 int getNodeValueByKey(int key , linkedList * list){
     node * nodePointer = list->head;
@@ -105,37 +94,6 @@ void printNodes(linkedList * list){
         nodePointer = nodePointer->next;
     }
     printf(" List End \n");
-}
-
-
-int mainTest() {
-
-    printf("Start \n");
-
-    linkedList *myList = malloc(sizeof(struct linkedList));
-
-    addNodeToListEnd(1,1,myList);
-    addNodeToListEnd(2,2,myList);
-    addNodeToListEnd(3,3,myList);
-
-    printNodes(myList);
-
-    addNodeToListEnd(2,22,myList);
-
-    printNodes(myList);
-
-    printf(" Node by Key:1 | Key : %i | Value %i \n", getNodeByKey(1,myList)->key, getNodeByKey(1,myList)->value);
-
-
-    printf(" Delete Key : 2 \n");
-    deleteNode(2,myList);
-
-    printNodes(myList);
-
-
-    printf("End \n");
-
-    return 0;
 }
 
 #endif //PROJEKT_LINKEDLISTHEADER_H
