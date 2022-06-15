@@ -14,34 +14,35 @@
 #define ENDLOSSCHLEIFE 1
 #define PORT 5678
 #define NUM_OF_CHILDS 2
-#define SEGSIZE sizeof(linkedList)
+#define SEGSIZE sizeof(linkedListKeyValueStore)
 #define NUMBER_OF_STRING 4
 #define MAX_STRING_SIZE 40
 
-typedef struct node {
+
+typedef struct nodeKeyValueStore {
     int key;
     int value;
     int next_ID;
     int prev_ID;
-} node;
+} nodeKeyValueStore;
 
-typedef struct linkedList {
+typedef struct linkedListKeyValueStore {
     int head_id;
     int tail_id;
-} linkedList;
+} linkedListKeyValueStore;
 
-int getNodeValueByKey(int key, linkedList *list) {
+int getNodeValueByKey(int key, linkedListKeyValueStore *list) {
 
-    node *shar_mem_TempNode = NULL;
+    nodeKeyValueStore *shar_mem_TempNode = NULL;
     if (list->head_id != -1) {
-        shar_mem_TempNode = (node *) shmat(list->head_id, 0, 0);
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(list->head_id, 0, 0);
     }
     while (shar_mem_TempNode != NULL) {
         if (shar_mem_TempNode->key == key) {
             return shar_mem_TempNode->value;
         }
         if (shar_mem_TempNode->next_ID != -1) {
-            shar_mem_TempNode = (node *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
         } else {
             shar_mem_TempNode = NULL;
         }
@@ -49,11 +50,11 @@ int getNodeValueByKey(int key, linkedList *list) {
     return -1;
 }
 
-int getNodeIDByKey(int key, linkedList *list) {
-    node *shar_mem_TempNode = NULL;
+int getNodeIDByKey(int key, linkedListKeyValueStore *list) {
+    nodeKeyValueStore *shar_mem_TempNode = NULL;
     int id = -1;
     if (list->head_id != -1) {
-        shar_mem_TempNode = (node *) shmat(list->head_id, 0, 0);
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(list->head_id, 0, 0);
         id = list->head_id;
     }
     while (shar_mem_TempNode != NULL) {
@@ -62,7 +63,7 @@ int getNodeIDByKey(int key, linkedList *list) {
         }
         if (shar_mem_TempNode->next_ID != -1) {
             id = shar_mem_TempNode->next_ID;
-            shar_mem_TempNode = (node *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
         } else {
             shar_mem_TempNode = NULL;
         }
@@ -70,15 +71,38 @@ int getNodeIDByKey(int key, linkedList *list) {
     return -1;
 }
 
-void addNodeToListEnd(int key, int value, linkedList *list) {
-    node *shar_mem_TempNode = NULL;
+int getNodeIDByKeyAndValue(int key, linkedListKeyValueStore *list) {
+    nodeKeyValueStore *shar_mem_TempNode = NULL;
+    int id = -1;
+    if (list->head_id != -1) {
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(list->head_id, 0, 0);
+        id = list->head_id;
+    }
+    while (shar_mem_TempNode != NULL) {
+        if (shar_mem_TempNode->key == key) {
+            if (shar_mem_TempNode->value == getpid()){
+                return id;
+            }
+        }
+        if (shar_mem_TempNode->next_ID != -1) {
+            id = shar_mem_TempNode->next_ID;
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+        } else {
+            shar_mem_TempNode = NULL;
+        }
+    }
+    return -1;
+}
+
+void addOrReplaceNodeToListEnd(int key, int value, linkedListKeyValueStore *list) {
+    nodeKeyValueStore *shar_mem_TempNode = NULL;
     int node_ID = -1;
 
     // Keine Node Key existiert
     if (list->head_id == -1) {
         // Shared Memory AddNode
         node_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
-        shar_mem_TempNode = (node *) shmat(node_ID, 0, 0);
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
 
         shar_mem_TempNode->key = key;
         shar_mem_TempNode->value = value;
@@ -92,34 +116,73 @@ void addNodeToListEnd(int key, int value, linkedList *list) {
         // Existiert Node Key
         node_ID = getNodeIDByKey(key, list);
         if (node_ID != -1) {
-            shar_mem_TempNode = (node *) shmat(node_ID, 0, 0);
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
             shar_mem_TempNode->value = value;
         } else {
             node_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
-            shar_mem_TempNode = (node *) shmat(node_ID, 0, 0);
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
 
             shar_mem_TempNode->key = key;
             shar_mem_TempNode->value = value;
             shar_mem_TempNode->next_ID = -1;
             shar_mem_TempNode->prev_ID = list->tail_id;
 
-            node *temp = (node *) shmat(list->tail_id, 0, 0);
+            nodeKeyValueStore *temp = (nodeKeyValueStore *) shmat(list->tail_id, 0, 0);
             temp->next_ID = node_ID;
             list->tail_id = node_ID;
         }
     }
 }
 
-void deleteNode(int key, linkedList *list) {
+void addNodeToListEnd(int key, int value, linkedListKeyValueStore *list) {
+    nodeKeyValueStore *shar_mem_TempNode = NULL;
+    int node_ID = -1;
+
+    // Keine Node Key existiert
+    if (list->head_id == -1) {
+        // Shared Memory AddNode
+        node_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
+
+        shar_mem_TempNode->key = key;
+        shar_mem_TempNode->value = value;
+
+        shar_mem_TempNode->next_ID = -1;
+        shar_mem_TempNode->prev_ID = -1;
+
+        list->head_id = node_ID;
+        list->tail_id = node_ID;
+    } else {
+        // Existiert Node Key
+        node_ID = getNodeIDByKeyAndValue(key, list);
+        if (node_ID != -1) {
+            printf("Already Subbed \n ");
+        } else {
+            node_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
+            shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
+
+            shar_mem_TempNode->key = key;
+            shar_mem_TempNode->value = value;
+            shar_mem_TempNode->next_ID = -1;
+            shar_mem_TempNode->prev_ID = list->tail_id;
+
+            nodeKeyValueStore *temp = (nodeKeyValueStore *) shmat(list->tail_id, 0, 0);
+            temp->next_ID = node_ID;
+            list->tail_id = node_ID;
+        }
+    }
+}
+
+void deleteNode(int key, linkedListKeyValueStore *list) {
     int node_ID = getNodeIDByKey(key, list);
     if (node_ID != -1) {
 
         int prev_ID = -1;
         int next_ID = -1;
-        node *shar_mem_TempNode = NULL;
-        node *shar_mem_TempNodeNext = NULL;
-        node *shar_mem_TempNodePrev = NULL;
-        shar_mem_TempNode = (node *) shmat(node_ID, 0, 0);
+        nodeKeyValueStore *shar_mem_TempNode = NULL;
+        nodeKeyValueStore *shar_mem_TempNodeNext = NULL;
+        nodeKeyValueStore *shar_mem_TempNodePrev = NULL;
+        shar_mem_TempNode = (nodeKeyValueStore *) shmat(node_ID, 0, 0);
 
         // Mittel Node
         if (shar_mem_TempNode->prev_ID != -1 && shar_mem_TempNode->next_ID != -1) {
@@ -127,8 +190,8 @@ void deleteNode(int key, linkedList *list) {
             prev_ID = shar_mem_TempNode->prev_ID;
             next_ID = shar_mem_TempNode->next_ID;
 
-            shar_mem_TempNodeNext = (node *) shmat(next_ID, 0, 0);
-            shar_mem_TempNodePrev = (node *) shmat(prev_ID, 0, 0);
+            shar_mem_TempNodeNext = (nodeKeyValueStore *) shmat(next_ID, 0, 0);
+            shar_mem_TempNodePrev = (nodeKeyValueStore *) shmat(prev_ID, 0, 0);
 
             shar_mem_TempNodePrev->next_ID = next_ID;
             shar_mem_TempNodeNext->prev_ID = prev_ID;
@@ -136,7 +199,7 @@ void deleteNode(int key, linkedList *list) {
             // AnfangsNode
         else if (shar_mem_TempNode->next_ID != -1) {
             next_ID = shar_mem_TempNode->next_ID;
-            shar_mem_TempNodeNext = (node *) shmat(next_ID, 0, 0);
+            shar_mem_TempNodeNext = (nodeKeyValueStore *) shmat(next_ID, 0, 0);
             shar_mem_TempNodeNext->prev_ID = -1;
 
             list->head_id = node_ID;
@@ -145,7 +208,7 @@ void deleteNode(int key, linkedList *list) {
         else if (shar_mem_TempNode->prev_ID != -1) {
 
             prev_ID = shar_mem_TempNode->prev_ID;
-            shar_mem_TempNodePrev = (node *) shmat(prev_ID, 0, 0);
+            shar_mem_TempNodePrev = (nodeKeyValueStore *) shmat(prev_ID, 0, 0);
             shar_mem_TempNodePrev->next_ID = -1;
 
             list->tail_id = node_ID;
@@ -159,6 +222,10 @@ void deleteNode(int key, linkedList *list) {
         shmdt(shar_mem_TempNode);
         shmctl(node_ID, IPC_RMID, 0);
     }
+}
+
+void notifyAllSubs(){
+
 }
 
 #pragma clang diagnostic push
@@ -219,18 +286,31 @@ int main() {
     int *shar_mem_client = (int *) shmat(shm_id_client, 0, 0);
     *shar_mem_client = 0;
 
-    // LinkedList für Key Value Store
-    linkedList *shar_mem_LinkedList = NULL;
-    int linkedList_ID;
-    int nextNode_ID;
     int keyHolder;
     int valueHolder;
 
-    // Shared Memory LinkedList
-    linkedList_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
-    shar_mem_LinkedList = (linkedList *) shmat(linkedList_ID, 0, 0);
-    shar_mem_LinkedList->head_id = -1;
-    shar_mem_LinkedList->tail_id = -1;
+    // LinkedList für Key Value Store
+    linkedListKeyValueStore *shar_mem_LinkedListKeyValueStore = NULL;
+    int linkedListKeyValueStore_ID;
+    int nextNode_ID;
+
+    // Shared Memory LinkedList Key Value Store
+    linkedListKeyValueStore_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
+    shar_mem_LinkedListKeyValueStore = (linkedListKeyValueStore *) shmat(linkedListKeyValueStore_ID, 0, 0);
+    shar_mem_LinkedListKeyValueStore->head_id = -1;
+    shar_mem_LinkedListKeyValueStore->tail_id = -1;
+
+
+    // LinkedList für Sub Store
+    linkedListKeyValueStore *shar_mem_LinkedListSubStore = NULL;
+    int linkedListSubStore_ID;
+    int nextNodeSub_ID;
+
+    // Shared Memory LinkedList Sub Store
+    linkedListSubStore_ID = shmget(IPC_PRIVATE, SEGSIZE, IPC_CREAT | 0600);
+    shar_mem_LinkedListSubStore = (linkedListKeyValueStore *) shmat(linkedListSubStore_ID, 0, 0);
+    shar_mem_LinkedListSubStore->head_id = -1;
+    shar_mem_LinkedListSubStore->tail_id = -1;
 
 
     char *helpMessage = (" /// HELP /// \n Key = Int | Value = Int \n quit to Quit \n list to List all Data \n put(Key,Value) to put date in \n get(Key) to return the Value of given Key \n del(Key) to delete date by key \n\n");
@@ -347,25 +427,30 @@ int main() {
                                 //BEG
                             else if (strcmp("sub", strtok(in, "\r\n")) == 0) {
                                 semop(sem_id1, &enter, 1);
+
                                 //Get Key
                                 write(cfd, "Key : ", strlen("Key : "));
                                 bytes_read = read(cfd, in, BUFSIZE);
 
                                 keyHolder = atoi(in);
 
-                                printf("Sub Key %i \n ", keyHolder);
+                                valueHolder = getpid();
+
+                                printf("Sub Key %i with PId : %i \n ", keyHolder, valueHolder);
 
                                 // Return Put Key Value
                                 sprintf(str, "%i", keyHolder);
-                                write(cfd, "\n Sub Key : ", strlen("\n Sub Key : "));
+                                write(cfd, "\n Put Key : ", strlen("\n Put Key : "));
                                 write(cfd, str, strlen(str));
 
+                                sprintf(str, "%i", valueHolder);
+                                write(cfd, " | Sub : ", strlen(" | Sub : "));
+                                write(cfd, str, strlen(str));
                                 write(cfd, "\n \n", strlen("\n \n"));
 
-                                // Put in SubList
+                                // Put in Linked list
+                                addNodeToListEnd(keyHolder, valueHolder, shar_mem_LinkedListSubStore);
 
-
-                                addNodeToListEnd(keyHolder, valueHolder, shar_mem_LinkedList);
                                 semop(sem_id1, &leave, 1);
                             }
                                 //QUIT
@@ -373,7 +458,7 @@ int main() {
                                 printf(" Quit \n ");
                                 printf("\n /// Verbindungsabbruch /// \n\n");
                                 close(cfd);
-                                return 0;
+                                kill(getpid(),SIGINT);
                             }
                                 // HELP
                             else if (strcmp("help", strtok(in, "\r\n")) == 0) {
@@ -408,7 +493,28 @@ int main() {
                                 write(cfd, "\n \n", strlen("\n \n"));
 
                                 // Put in Linked list
-                                addNodeToListEnd(keyHolder, valueHolder, shar_mem_LinkedList);
+                                addOrReplaceNodeToListEnd(keyHolder, valueHolder, shar_mem_LinkedListKeyValueStore);
+
+                                // Notify All Subs
+                                printf(" Notify All Subs Start \n");
+
+                                nodeKeyValueStore *shar_mem_TempNode = NULL;
+                                if (shar_mem_LinkedListSubStore->head_id != -1) {
+                                    shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_LinkedListSubStore->head_id, 0, 0);
+                                }
+                                while (shar_mem_TempNode != NULL) {
+                                    if  (keyHolder == shar_mem_TempNode->key) {
+
+
+                                    }
+                                    if (shar_mem_TempNode->next_ID != -1) {
+                                        shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+                                    } else {
+                                        shar_mem_TempNode = NULL;
+                                    }
+                                }
+                                printf(" Notify All Subs End \n");
+
                                 semop(sem_id1, &leave, 1);
                             }
                                 // GET
@@ -421,7 +527,7 @@ int main() {
                                 // Store Key
                                 keyHolder = atoi(in);
                                 // Store Value
-                                valueHolder = getNodeValueByKey(keyHolder, shar_mem_LinkedList);
+                                valueHolder = getNodeValueByKey(keyHolder, shar_mem_LinkedListKeyValueStore);
                                 if (valueHolder != -1) {
                                     printf("Found Key %i with Value : %i \n ", keyHolder, valueHolder);
                                     // Return Value
@@ -449,9 +555,9 @@ int main() {
                                 bytes_read = read(cfd, in, BUFSIZE);
                                 // Store Key
                                 keyHolder = atoi(in);
-                                if (getNodeIDByKey(keyHolder, shar_mem_LinkedList) != -1) {
+                                if (getNodeIDByKey(keyHolder, shar_mem_LinkedListKeyValueStore) != -1) {
                                     printf("Found Key %i with Value : %i \n ", keyHolder, valueHolder);
-                                    deleteNode(keyHolder, shar_mem_LinkedList);
+                                    deleteNode(keyHolder, shar_mem_LinkedListKeyValueStore);
                                     write(cfd, "\n Delete Key : ", strlen("\n Delete Key : "));
                                     sprintf(str, "%i", keyHolder);
                                     write(cfd, str, strlen(str));
@@ -464,6 +570,9 @@ int main() {
                                     write(cfd, "\n Not Found ", strlen("\n Not Found "));
                                     write(cfd, "\n \n", strlen("\n \n"));
                                 }
+
+                                notifyAllSubs(keyHolder);
+
                                 semop(sem_id1, &leave, 1);
                             }
                                 //LIST
@@ -473,9 +582,9 @@ int main() {
                                 printf(" List Start \n");
                                 write(cfd, "\n /// List Start /// \n", strlen("\n /// List Start /// \n"));
 
-                                node *shar_mem_TempNode = NULL;
-                                if (shar_mem_LinkedList->head_id != -1) {
-                                    shar_mem_TempNode = (node *) shmat(shar_mem_LinkedList->head_id, 0, 0);
+                                nodeKeyValueStore *shar_mem_TempNode = NULL;
+                                if (shar_mem_LinkedListKeyValueStore->head_id != -1) {
+                                    shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_LinkedListKeyValueStore->head_id, 0, 0);
                                 }
 
                                 while (shar_mem_TempNode != NULL) {
@@ -497,14 +606,54 @@ int main() {
                                     write(cfd, "\n", strlen("\n"));
 
                                     if (shar_mem_TempNode->next_ID != -1) {
-                                        shar_mem_TempNode = (node *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+                                        shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
                                     } else {
                                         shar_mem_TempNode = NULL;
                                     }
                                 }
                                 printf(" List End \n");
                                 write(cfd, "\n /// List End /// \n\n", strlen("\n /// List End /// \n\n"));
-                            } else {
+                            }
+                                //SUBLIST
+                            else if (strcmp("sublist", strtok(in, "\r\n")) == 0) {
+                                semop(sem_id1, &enter, 1);
+                                semop(sem_id1, &leave, 1);
+                                printf(" SubList Start \n");
+                                write(cfd, "\n /// SubList Start /// \n", strlen("\n /// SubList Start /// \n"));
+
+                                nodeKeyValueStore *shar_mem_TempNode = NULL;
+                                if (shar_mem_LinkedListSubStore->head_id != -1) {
+                                    shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_LinkedListSubStore->head_id, 0, 0);
+                                }
+
+                                while (shar_mem_TempNode != NULL) {
+
+                                    printf(" Key: %i | Value: %i \n", shar_mem_TempNode->key, shar_mem_TempNode->value);
+
+                                    keyHolder = shar_mem_TempNode->key;
+
+                                    valueHolder = shar_mem_TempNode->value;
+
+                                    write(cfd, "\n Key : ", strlen("\n Key : "));
+                                    sprintf(str, "%i", keyHolder);
+                                    write(cfd, str, strlen(str));
+
+                                    write(cfd, " | Value : ", strlen(" | Value : "));
+                                    sprintf(str, "%i", valueHolder);
+                                    write(cfd, str, strlen(str));
+
+                                    write(cfd, "\n", strlen("\n"));
+
+                                    if (shar_mem_TempNode->next_ID != -1) {
+                                        shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+                                    } else {
+                                        shar_mem_TempNode = NULL;
+                                    }
+                                }
+                                printf(" SubList End \n");
+                                write(cfd, "\n /// List End /// \n\n", strlen("\n /// List End /// \n\n"));
+                            }
+                            else {
                                 printf("No choice \n");
                             }
 
@@ -524,8 +673,8 @@ int main() {
     printf(" END \n");
 
     // Das Shared Memory Segment wird abgekoppelt und freigegeben.
-    shmdt(shar_mem_LinkedList);
-    shmctl(linkedList_ID, IPC_RMID, 0);
+    shmdt(shar_mem_LinkedListKeyValueStore);
+    shmctl(linkedListKeyValueStore_ID, IPC_RMID, 0);
     semctl(sem_id1, 0, IPC_RMID);
     semctl(sem_id2, 0, IPC_RMID);
 
