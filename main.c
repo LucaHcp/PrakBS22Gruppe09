@@ -9,6 +9,9 @@
 #include <sys/shm.h>
 #include <sys/wait.h>
 #include <sys/sem.h>
+#include <sys/msg.h>
+#include <sys/ipc.h>
+
 
 #define BUFSIZE 1024 // Größe des Buffers
 #define ENDLOSSCHLEIFE 1
@@ -224,9 +227,16 @@ void deleteNode(int key, linkedListKeyValueStore *list) {
     }
 }
 
-void notifyAllSubs(){
+typedef struct text_Message{
+    int mType;
+    char mText[100];
+}text_Message ;
 
-}
+typedef struct sub_Message{
+    int type;
+    int key;
+    int value;
+}sub_Message ;
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
@@ -349,13 +359,15 @@ int main() {
         exit(-1);
     }
 
-
     // Socket lauschen lassen
     int lrt = listen(rfd, 5);
     if (lrt < 0) {
         fprintf(stderr, "socket konnte nicht listen gesetzt werden\n");
         exit(-1);
     }
+
+    //NachrichtenWarteschlange
+    int msid = msgget(IPC_PRIVATE,IPC_CREAT | 0600);
 
     printf(" Start \n");
 
@@ -377,9 +389,39 @@ int main() {
 
                 pid = fork();
 
+                int parentPid = -1;
+                if(pid == 0){
+                    printf("pid in child=%d and parent=%d\n",getpid(),getppid());
+                    parentPid = getppid();
+                }
+                else{
+                    printf("pid in parent=%d and childid=%d\n",getpid(),pid);
+                }
+
                 while (ENDLOSSCHLEIFE) {
-                    if (pid != 0) {
+                    if (pid == 0) {
                         // WarteschlangenNachrichten Prozesse
+                        printf(" WarteSchlangenAbfrage | ParentPid : %i \n",parentPid);
+                        sub_Message message;
+                        while (ENDLOSSCHLEIFE) {
+                            printf( "Await Message \n");
+                            int v = msgrcv(msid,&message,sizeof (sub_Message),0,0);
+                            printf("Received Message \n");
+                            if (v != -1) {
+                                printf("Sub Message   Key : %i | Value : %i \n ", message.key, message.value);
+
+                                write(cfd, " Sub Message \n", strlen(" Sub Message \n"));
+                                sprintf(str, "%i", message.key);
+                                write(cfd, " Key : ", strlen(" Key : "));
+                                write(cfd, str, strlen(str));
+                                write(cfd, "\n \n", strlen("\n \n"));
+                                sprintf(str, "%i", message.value);
+                                write(cfd, " | Value : ", strlen(" | Value : "));
+                                write(cfd, str, strlen(str));
+                                write(cfd, "\n \n", strlen("\n \n"));
+
+                            }
+                        }
 
                     } else {
 
@@ -496,7 +538,7 @@ int main() {
                                 addOrReplaceNodeToListEnd(keyHolder, valueHolder, shar_mem_LinkedListKeyValueStore);
 
                                 // Notify All Subs
-                                printf(" Notify All Subs Start \n");
+                                printf("Notify All Subs Start \n");
 
                                 nodeKeyValueStore *shar_mem_TempNode = NULL;
                                 if (shar_mem_LinkedListSubStore->head_id != -1) {
@@ -504,8 +546,12 @@ int main() {
                                 }
                                 while (shar_mem_TempNode != NULL) {
                                     if  (keyHolder == shar_mem_TempNode->key) {
-
-
+                                        sub_Message message;
+                                        message.type = shar_mem_TempNode->value;
+                                        message.key = keyHolder;
+                                        message.value = valueHolder;
+                                        msgsnd(msid,&message,sizeof (sub_Message),0);
+                                        printf("Send Message to %i with Key : %i | Value : %i \n",shar_mem_TempNode->value, keyHolder ,valueHolder);
                                     }
                                     if (shar_mem_TempNode->next_ID != -1) {
                                         shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
@@ -570,8 +616,6 @@ int main() {
                                     write(cfd, "\n Not Found ", strlen("\n Not Found "));
                                     write(cfd, "\n \n", strlen("\n \n"));
                                 }
-
-                                notifyAllSubs(keyHolder);
 
                                 semop(sem_id1, &leave, 1);
                             }
