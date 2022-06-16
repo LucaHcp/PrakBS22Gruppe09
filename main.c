@@ -227,13 +227,9 @@ void deleteNode(int key, linkedListKeyValueStore *list) {
     }
 }
 
-typedef struct text_Message{
-    int mType;
-    char mText[100];
-}text_Message ;
-
 typedef struct sub_Message{
-    int type;
+    long type;
+    int cmd; // 1 = put / 2 = del
     int key;
     int value;
 }sub_Message ;
@@ -368,6 +364,7 @@ int main() {
 
     //NachrichtenWarteschlange
     int msid = msgget(IPC_PRIVATE,IPC_CREAT | 0600);
+    //int rc = msgctl(msid,)
 
     printf(" Start \n");
 
@@ -405,21 +402,32 @@ int main() {
                         sub_Message message;
                         while (ENDLOSSCHLEIFE) {
                             printf( "Await Message \n");
-                            int v = msgrcv(msid,&message,sizeof (sub_Message),0,0);
-                            printf("Received Message \n");
+                            int v = msgrcv(msid,&message,sizeof (sub_Message),parentPid,0);
+                            printf("Received Message Pid : % i \n", getpid());
                             if (v != -1) {
-                                printf("Sub Message   Key : %i | Value : %i \n ", message.key, message.value);
 
-                                write(cfd, " Sub Message \n", strlen(" Sub Message \n"));
-                                sprintf(str, "%i", message.key);
-                                write(cfd, " Key : ", strlen(" Key : "));
-                                write(cfd, str, strlen(str));
-                                write(cfd, "\n \n", strlen("\n \n"));
-                                sprintf(str, "%i", message.value);
-                                write(cfd, " | Value : ", strlen(" | Value : "));
-                                write(cfd, str, strlen(str));
-                                write(cfd, "\n \n", strlen("\n \n"));
+                                if  (message.cmd == 1) {
+                                    printf("Sub Message Put Key : %i | Value : %i \n ", message.key, message.value);
 
+                                    write(cfd, " Sub Message Put \n", strlen(" Sub Message Put \n"));
+                                    sprintf(str, "%i", message.key);
+                                    write(cfd, " Key : ", strlen(" Key : "));
+                                    write(cfd, str, strlen(str));
+                                    sprintf(str, "%i", message.value);
+                                    write(cfd, " | Value : ", strlen(" | Value : "));
+                                    write(cfd, str, strlen(str));
+                                    write(cfd, "\n \n", strlen("\n \n"));
+
+                                }
+                                else if (message.cmd == 2) {
+                                    printf("Sub Message Del Key : %i \n ", message.key);
+
+                                    write(cfd, " Sub Message Del \n", strlen(" Sub Message Del \n"));
+                                    sprintf(str, "%i", message.key);
+                                    write(cfd, " Key : ", strlen(" Key : "));
+                                    write(cfd, str, strlen(str));
+                                    write(cfd, "\n \n", strlen("\n \n"));
+                                }
                             }
                         }
 
@@ -548,6 +556,7 @@ int main() {
                                     if  (keyHolder == shar_mem_TempNode->key) {
                                         sub_Message message;
                                         message.type = shar_mem_TempNode->value;
+                                        message.cmd = 1;
                                         message.key = keyHolder;
                                         message.value = valueHolder;
                                         msgsnd(msid,&message,sizeof (sub_Message),0);
@@ -616,6 +625,31 @@ int main() {
                                     write(cfd, "\n Not Found ", strlen("\n Not Found "));
                                     write(cfd, "\n \n", strlen("\n \n"));
                                 }
+
+                                // Notify All Subs
+                                printf("Notify All Subs Start \n");
+
+                                nodeKeyValueStore *shar_mem_TempNode = NULL;
+                                if (shar_mem_LinkedListSubStore->head_id != -1) {
+                                    shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_LinkedListSubStore->head_id, 0, 0);
+                                }
+                                while (shar_mem_TempNode != NULL) {
+                                    if  (keyHolder == shar_mem_TempNode->key) {
+                                        sub_Message message;
+                                        message.type = shar_mem_TempNode->value;
+                                        message.cmd = 2;
+                                        message.key = keyHolder;
+                                        message.value = valueHolder;
+                                        msgsnd(msid,&message,sizeof (sub_Message),0);
+                                        printf("Send Message to %i with Key : %i | Value : %i \n",shar_mem_TempNode->value, keyHolder ,valueHolder);
+                                    }
+                                    if (shar_mem_TempNode->next_ID != -1) {
+                                        shar_mem_TempNode = (nodeKeyValueStore *) shmat(shar_mem_TempNode->next_ID, 0, 0);
+                                    } else {
+                                        shar_mem_TempNode = NULL;
+                                    }
+                                }
+                                printf(" Notify All Subs End \n");
 
                                 semop(sem_id1, &leave, 1);
                             }
